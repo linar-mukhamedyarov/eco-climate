@@ -2,11 +2,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi_mqtt import FastMQTT
 import json
-import sys
-
-# configs
-sys.path.append("../configs/")
-from config import mqtt_config, uvicorn_config
+from config import settings  # config file
 
 # Logs
 import logging
@@ -19,21 +15,19 @@ logging.basicConfig(
 
 # initialisation
 app = FastAPI()
-mqtt = FastMQTT(config=mqtt_config)  # connect to mqtt broker
+mqtt = FastMQTT(config=settings.mqtt_config)  # connect to mqtt broker
 mqtt.init_app(app)
 
 
 @mqtt.on_connect()
 def connect(client, flags, rc, properties):
     client.subscribe("/room/#")
-    logger.info("Subscribed to '/room/#'")
-    return
 
 
 @mqtt.on_message()
 async def getData(client, topic, payload, qos, properties):
     try:
-        print(json.loads(payload)["temperature"], json.loads(payload)["co2"])
+        logger.info(f"Temp: {json.loads(payload)["temperature"]}, CO2: {json.loads(payload)["co2"]}")
     except:
         logger.error("Cannot convert data from JSON to python dict")
 
@@ -45,9 +39,13 @@ async def getData(client, topic, payload, qos, properties):
 
 
 if __name__ == "__main__":
-    server = uvicorn.Server(uvicorn_config)
     try:
-        server.run()
+        uvicorn.run(
+            app="main:app",
+            host=settings.uvicorn_host,
+            port=settings.uvicorn_port,
+            reload=settings.uvicorn_reload,
+        )
     except:
         logger.warning(msg="Server are shuting down", exc_info=True)
     finally:
