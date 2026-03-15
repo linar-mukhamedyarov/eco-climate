@@ -3,14 +3,25 @@ services:
     build: ./fastapi
     depends_on:
         - mosquitto
-        # db
+        - timescaledb
     env_file:
         - ./config.env
+    environment:
+      - db_url=timescaledb
+      - db_user=$POSTGRES_USER
+      - db_password=$POSTGRES_PASSWORD
   mosquitto:
     image: eclipse-mosquitto:latest
     ports:
         - "1883:1883"
     volumes:
       - ./mosquitto/config:/mosquitto/config:ro
-  # db
+  timescaledb:
+    image: timescale/timescaledb:latest-pg18
+    environment:
+      - POSTGRES_USER=$POSTGRES_USER
+      - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+      - POSTGRES_DB=$POSTGRES_DB
+    volumes:
+      - $DB_LOCATION:/pgdata
   # arache superset
