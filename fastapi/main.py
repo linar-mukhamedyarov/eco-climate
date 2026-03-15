@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi_mqtt import FastMQTT
 import json
 from config import settings  # config file
+# import database
 
 # Logs
 import logging
@@ -26,6 +27,7 @@ def connect(client, flags, rc, properties):
 
 @mqtt.on_message()
 async def getData(client, topic, payload, qos, properties):
+    logger.info(f"Topic: {topic}")
     try:
         logger.info(f"Temp: {json.loads(payload)["temperature"]}, CO2: {json.loads(payload)["co2"]}")
     except:

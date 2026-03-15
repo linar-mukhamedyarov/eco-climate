@@ -12,9 +12,11 @@ class Settings(BaseSettings):
     mqtt_host: str = "mosquitto"
     mqtt_port: int = 1883
     # db settings
-    db_url: str = ""
+    db_name: str = ""
     db_user: str = ""
     db_password: str = ""
+    db_host: str = "timescaledb"
+    db_port: int = 5432
 
     # get mqtt_config
     @property

@@ -2,14 +2,19 @@ services:
   fastapi:
     build: ./fastapi
     depends_on:
-        - mosquitto
-        - timescaledb
+      timescaledb:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+
     env_file:
         - ./config.env
     environment:
-      - db_url=timescaledb
+      - db_name=$POSTGRES_DB
       - db_user=$POSTGRES_USER
       - db_password=$POSTGRES_PASSWORD
+      - db_host=timescaledb
+      - db_port=5432
   mosquitto:
     image: eclipse-mosquitto:latest
     ports:
@@ -19,9 +24,16 @@ services:
   timescaledb:
     image: timescale/timescaledb:latest-pg18
     environment:
-      - POSTGRES_USER=$POSTGRES_USER
-      - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
-      - POSTGRES_DB=$POSTGRES_DB
+      - PGDATA=/pgdata
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     volumes:
-      - $DB_LOCATION:/pgdata
+      - ${DB_LOCATION}:/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      # interval: 10s
+      # timeout: 5s
+      # retries: 5
+      start_period: 20s
   # arache superset
