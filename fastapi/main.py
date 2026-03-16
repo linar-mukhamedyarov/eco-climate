@@ -2,12 +2,11 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi_mqtt import FastMQTT
 import json
+import logging # Logs
 from config import settings  # config file
-# import database
+from database import db # work with db
 
 # Logs
-import logging
-
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO,
@@ -27,17 +26,15 @@ def connect(client, flags, rc, properties):
 
 @mqtt.on_message()
 async def getData(client, topic, payload, qos, properties):
-    logger.info(f"Topic: {topic}")
     try:
-        logger.info(f"Temp: {json.loads(payload)["temperature"]}, CO2: {json.loads(payload)["co2"]}")
+        db.add_data(
+            room_id=int(topic.split("/")[-1]),
+            temperature=float(json.loads(payload)["temperature"]),
+            humidity=float(json.loads(payload)["humidity"]),
+            co2=int(json.loads(payload)["co2"])
+            )
     except:
-        logger.error("Cannot convert data from JSON to python dict")
-
-
-# test
-# @app.post("/testdata")
-# async def sendData(data):
-#     mqtt.publish("/room/102", payload=data)
+        logger.error("Cannot add data", exc_info=True)
 
 
 if __name__ == "__main__":
@@ -51,5 +48,4 @@ if __name__ == "__main__":
     except:
         logger.warning(msg="Server are shuting down", exc_info=True)
     finally:
-        ## Close db
-        pass
+        db.close_db() # close db

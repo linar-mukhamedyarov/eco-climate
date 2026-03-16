@@ -1,14 +1,31 @@
 import psycopg2
 from config import settings
+from datetime import datetime
 
-conn = psycopg2.connect(f"dbname={settings.db_name} user={settings.db_user} password={settings.db_password} host={settings.db_host} port={settings.db_port}")
-cur = conn.cursor()
+class DbModel:
+    def __init__(self):
+        self.conn = psycopg2.connect(f"dbname={settings.db_name} user={settings.db_user} password={settings.db_password} host={settings.db_host} port={settings.db_port}")
+        self.cur = self.conn.cursor()
 
-async def create_table(table_name: str):
-    await cur.execute(f"""CREATE TABLE {table_name}(
-                      time TIMESTAMPTZ NOT NULL,
-                      temperature DOUBLE PRECISION,
-                      humidity DOUBLE PRECISION)
-                      """)
-cur.close()
-conn.close()
+        self.cur.execute("""CREATE TABLE room_metrics (
+                        time TIMESTAMPTZ NOT NULL,
+                        room_id INTEGER NOT NULL,
+                        temperature DOUBLE PRECISION,
+                        humidity DOUBLE PRECISION,
+                        co2 INTEGER NOT NULL) WITH (
+                        tsdb.hypertable,
+                        tsdb.orderby = 'time DESC')
+                    """)
+
+    def add_data(self, room_id: int, temperature: float, humidity: float, co2: int):
+        self.cur.execute(f"""INSERT INTO room_metrics VALUES (
+                      '{datetime.now().isoformat()}',
+                      {room_id},
+                      {temperature},
+                      {humidity},
+                      {co2})""")
+    def close_db(self):
+        self.cur.close()
+        self.conn.close()
+
+db = DbModel()
