@@ -6,34 +6,79 @@ services:
         condition: service_healthy
       mosquitto:
         condition: service_started
-
-    env_file:
-        - ./config.env
     environment:
-      - db_name=$POSTGRES_DB
-      - db_user=$POSTGRES_USER
-      - db_password=$POSTGRES_PASSWORD
-      - db_host=timescaledb
-      - db_port=5432
+      # uvicorn
+      - uvicorn_host=$UVICORN_HOST
+      - uvicorn_port=$UVICORN_PORT
+      - uvicorn_reload=$UVICORN_RELOAD
+      # mosquitto
+      - mqtt_host=$MQTT_HOST
+      - mqtt_port=$MQTT_PORT
+      # timescaledb
+      - db_host=$DB_HOST
+      - db_port=$DB_PORT
+      - db_name=$DB_NAME
+      - db_user=$DB_USER
+      - db_password=$DB_PASSWORD
   mosquitto:
     image: eclipse-mosquitto:latest
     ports:
-        - "1883:1883"
+        - "$MQTT_PORT:1883"
     volumes:
       - ./mosquitto/config:/mosquitto/config:ro
   timescaledb:
     image: timescale/timescaledb:latest-pg18
     environment:
       - PGDATA=/pgdata
-      # - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      # - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=$DB_USER
+      - POSTGRES_PASSWORD=$DB_PASSWORD
+      - POSTGRES_DB=$DB_NAME
     volumes:
-      - ${DB_LOCATION}:/pgdata
+      - $DB_LOCATION:/pgdata
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U $DB_USER"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 20s
-  # arache superset
+  superset:
+    build: ./superset
+    ports:
+      - "$SUPERSET_PORT:8088"
+    environment:
+      - SUPERSET_SECRET_KEY=$SUPERSET_KEY
+      # db for superset settings
+      - DB_TYPE=postgresql
+      - DB_HOST=$SUPERSET_DB_HOST
+      - DB_PORT=$SUPERSET_DB_PORT
+      - DB_NAME=$SUPERSET_DB_NAME
+      - DB_USER=$SUPERSET_DB_USER
+      - DB_PASS=$SUPERSET_DB_PASSWORD
+      # admin settings
+      - SUPERSET_ADMIN_USERNAME=$SUPERSET_ADMIN_USERNAME
+      - SUPERSET_ADMIN_FIRSTNAME=$SUPERSET_ADMIN_FIRSTNAME
+      - SUPERSET_ADMIN_LASTNAME=$SUPERSET_ADMIN_LASTNAME
+      - SUPERSET_ADMIN_PASSWORD=$SUPERSET_ADMIN_PASSWORD
+      - SUPERSET_ADMIN_EMAIL=$SUPERSET_ADMIN_EMAIL
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      superset_db:
+        condition: service_started
+      redis:
+        condition: service_started
+    volumes:
+      - "./superset/setup_superset.sh:/app/setup_superset.sh"
+    entrypoint: ["/bin/bash", "/app/setup_superset.sh"]
+  superset_db:
+    image: postgres:latest
+    environment:
+      - POSTGRES_DB=$SUPERSET_DB_NAME
+      - POSTGRES_USER=$SUPERSET_DB_USER
+      - POSTGRES_PASSWORD=$SUPERSET_DB_PASSWORD
+    volumes:
+      - superset_db_data:/var/lib/postgresql/data
+  redis:
+    image: redis:latest
+volumes:
+  superset_db_data:

@@ -2,9 +2,9 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi_mqtt import FastMQTT
 import json
-import logging # Logs
+import logging  # Logs
 from config import settings  # config file
-from database import db # work with db
+from database import db  # work with db
 
 # Logs
 logger = logging.getLogger(__name__)
@@ -31,8 +31,8 @@ async def getData(client, topic, payload, qos, properties):
             room_id=int(topic.split("/")[-1]),
             temperature=float(json.loads(payload)["temperature"]),
             humidity=float(json.loads(payload)["humidity"]),
-            co2=int(json.loads(payload)["co2"])
-            )
+            co2=int(json.loads(payload)["co2"]),
+        )
     except:
         logger.error("Cannot add data", exc_info=True)
 
@@ -48,4 +48,4 @@ if __name__ == "__main__":
     except:
         logger.warning(msg="Server are shuting down", exc_info=True)
     finally:
-        db.close_db() # close db
+        db.close_db()  # close db
